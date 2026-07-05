@@ -97,9 +97,18 @@ button:active{box-shadow:inset 5px 5px 10px var(--dark), inset -5px -5px 10px va
   overflow-wrap:anywhere;white-space:pre-wrap;
   color:var(--ink);
   border-radius:16px;
-  transition:top 7s ease, color 7s ease, text-shadow 7s ease,
-             padding 7s ease, box-shadow 7s ease;
+  /* 沈降はゆっくり始まりゆっくり終わる。translate/scale/opacity は
+     くぼみ化で浮遊が止まるときの受け皿（7sかけて静まる） */
+  transition:top 7s cubic-bezier(.45,.05,.55,.95), color 7s ease, text-shadow 7s ease,
+             padding 7s ease, box-shadow 7s ease,
+             translate 7s ease, scale 7s ease, opacity 7s ease;
+  /* 浮遊: 横のゆるい揺れ＋ごく浅い明滅。周期・位相・振幅は要素ごとに
+     mountMsg が id から与える（揃えない）。位置決めの left/top には触れない */
+  animation:sway var(--swayDur,18s) ease-in-out var(--swayDelay,0s) infinite alternate,
+            breathe var(--bobDur,11s) ease-in-out var(--bobDelay,0s) infinite alternate;
 }
+@keyframes sway{from{translate:calc(var(--swayAmp,4px) * -1) 0}to{translate:var(--swayAmp,4px) 0}}
+@keyframes breathe{from{opacity:.93;scale:.988}to{opacity:1;scale:1}}
 .msg::before{
   content:"";position:absolute;inset:-10px -18px;z-index:-1;
   border-radius:50%;
@@ -130,20 +139,24 @@ button:active{box-shadow:inset 5px 5px 10px var(--dark), inset -5px -5px 10px va
 }
 @keyframes seep{to{opacity:.55}}
 
-/* 新着: 押し出しとして生まれ（birth）、fresh解除後は7sの遷移で面へ溶ける */
+/* 新着: 押し出しとして生まれ（birth）、fresh解除後は7sの遷移で面へ溶ける。
+   浮遊（sway/breathe）は base の .msg と同じものをここでも列挙する
+   （animation ショートハンドが base を上書きするため） */
 .msg.fresh{
   background:var(--bg);
   padding:12px 16px;border-radius:18px;
   box-shadow:-7px -7px 16px var(--lite), 7px 7px 16px var(--dark);
-  animation:birth 2.6s ease-out, drift 16s ease-in-out 2.6s infinite alternate;
+  animation:birth 2.6s ease-out,
+            sway var(--swayDur,18s) ease-in-out var(--swayDelay,0s) infinite alternate,
+            breathe var(--bobDur,11s) ease-in-out var(--bobDelay,0s) infinite alternate;
 }
 @keyframes birth{
   from{box-shadow:-11px -11px 30px rgba(255,255,255,1), 11px 11px 30px rgba(193,182,161,.38)}
   to{box-shadow:-7px -7px 16px var(--lite), 7px 7px 16px var(--dark)}
 }
-@keyframes drift{from{transform:translateX(-5px)}to{transform:translateX(5px)}}
 
-.msg.dent{pointer-events:none;padding:0;box-shadow:none}
+/* くぼみ=地面の記憶。浮遊は止まり、transition で7sかけて静止に戻る */
+.msg.dent{pointer-events:none;padding:0;box-shadow:none;animation:none;translate:none;scale:none;opacity:1}
 .msg.dent::before{opacity:.9}
 .msg.dent .pit{
   position:relative;height:10px;border-radius:8px;
@@ -159,7 +172,7 @@ button:active{box-shadow:inset 5px 5px 10px var(--dark), inset -5px -5px 10px va
 }
 
 @media (prefers-reduced-motion:reduce){
-  .msg.fresh{animation:none}
+  .msg,.msg.fresh{animation:none;translate:none;scale:none;opacity:1}
   body::before,body::after,form::before{animation:none}
   .msg.dent .pit.settle{animation:none}
 }
@@ -442,6 +455,12 @@ function score(m, now){
 function mountMsg(m){
   const el = document.createElement('div');
   el.className = 'msg s0';
+  // 浮遊の個体差: 振幅・周期・位相を id から決める（要素間で揃えない・復元しても同じ）
+  el.style.setProperty('--swayAmp', (2.5 + hash01(m.id + 'sa') * 3.5).toFixed(1) + 'px');
+  el.style.setProperty('--swayDur', (14 + hash01(m.id + 'sd') * 12).toFixed(1) + 's');
+  el.style.setProperty('--swayDelay', '-' + (hash01(m.id + 'sp') * 26).toFixed(1) + 's');
+  el.style.setProperty('--bobDur', (9 + hash01(m.id + 'bd') * 8).toFixed(1) + 's');
+  el.style.setProperty('--bobDelay', '-' + (hash01(m.id + 'bp') * 17).toFixed(1) + 's');
   const chars = [...m.text];
   for(let i = 0; i < chars.length; i++){
     if(chars[i] === '\n'){ el.appendChild(document.createElement('br')); continue; }
