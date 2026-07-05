@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>メッセージ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E9E4DA;
+  --ink:#4A4335;
+  --lite:rgba(255,255,255,.96);
+  --dark:rgba(193,182,161,.62);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"Zen Kaku Gothic New",system-ui,sans-serif;
+  overflow:hidden;
+}
+
+/* 地形: 窪地。縁は画面外へ逃がし、上の段差だけが地表に出る。
+   呼吸は起伏の深さ（opacity）のみ。光源の向きは動かさない */
+body::before{
+  content:"";position:fixed;z-index:0;
+  left:-6vw;right:-6vw;top:42vh;bottom:-14vh;
+  border-radius:160px;
+  box-shadow:inset 6px 6px 14px rgba(186,174,150,.32), inset -6px -6px 14px rgba(255,255,255,.6),
+             inset 28px 28px 90px rgba(186,174,150,.38), inset -28px -28px 90px rgba(255,255,255,.5);
+  animation:swell 17s ease-in-out infinite alternate;
+}
+body::after{
+  content:"";position:fixed;z-index:0;
+  left:-10vw;right:-10vw;top:70vh;bottom:-20vh;
+  border-radius:160px;
+  box-shadow:inset 5px 5px 12px rgba(186,174,150,.3), inset -5px -5px 12px rgba(255,255,255,.5),
+             inset 24px 24px 76px rgba(186,174,150,.34), inset -24px -24px 76px rgba(255,255,255,.44);
+  animation:swell 23s ease-in-out -8s infinite alternate;
+}
+@keyframes swell{from{opacity:.78}to{opacity:1}}
+
+#f{position:fixed;inset:0;z-index:1}
+
+main{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;pointer-events:none}
+
+form{
+  position:relative;
+  width:min(880px,92vw);display:flex;flex-direction:column;align-items:flex-end;gap:22px;
+  pointer-events:auto;
+  background:var(--bg);border-radius:44px;padding:26px;
+  box-shadow:-10px -10px 26px rgba(255,255,255,.8), 10px 10px 26px rgba(193,182,161,.5);
+}
+/* 光る縁: 台座の光量だけがゆっくり呼吸する */
+form::before{
+  content:"";position:absolute;inset:0;z-index:-1;border-radius:44px;
+  box-shadow:-5px -5px 12px rgba(255,255,255,.95),
+             -22px -22px 56px rgba(255,255,255,.85),
+             14px 14px 40px rgba(193,182,161,.5);
+  animation:bloom 9s ease-in-out infinite alternate;
+}
+@keyframes bloom{from{opacity:.3}to{opacity:.85}}
+
+textarea{
+  width:100%;
+  height:clamp(210px,32vh,330px);
+  border:0;outline:0;resize:none;
+  background:var(--bg);color:var(--ink);
+  font:inherit;font-size:17px;line-height:1.9;
+  padding:30px 34px;border-radius:34px;
+  caret-color:#B65C3F;
+  box-shadow:inset 9px 9px 22px var(--dark), inset -9px -9px 22px var(--lite);
+  transition:box-shadow .6s ease;
+}
+textarea::placeholder{color:#A99F8C}
+textarea:focus{box-shadow:inset 11px 11px 26px var(--dark), inset -11px -11px 26px var(--lite)}
+/* 送信の瞬間: 井戸がいちど深く明るくなり、.6sで戻る */
+form.sent textarea{box-shadow:inset 13px 13px 30px var(--dark), inset -13px -13px 30px rgba(255,255,255,1)}
+
+button{
+  border:0;outline:0;
+  background:var(--bg);color:#564E3F;
+  font:inherit;font-size:15px;font-weight:500;letter-spacing:.04em;
+  padding:17px 44px;border-radius:999px;cursor:pointer;
+  box-shadow:-6px -6px 12px var(--lite), 6px 6px 12px var(--dark);
+  transition:box-shadow .18s ease;
+}
+button:hover,button:focus-visible{box-shadow:-8px -8px 15px var(--lite), 8px 8px 15px var(--dark)}
+button:active{box-shadow:inset 5px 5px 10px var(--dark), inset -5px -5px 10px var(--lite)}
+
+.msg{
+  position:absolute;
+  font-size:14.5px;line-height:2;
+  overflow-wrap:anywhere;white-space:pre-wrap;
+  color:var(--ink);
+  border-radius:16px;
+  transition:top 7s ease, color 7s ease, text-shadow 7s ease,
+             padding 7s ease, box-shadow 7s ease;
+}
+.msg::before{
+  content:"";position:absolute;inset:-10px -18px;z-index:-1;
+  border-radius:50%;
+  background:rgba(140,120,90,.05);
+  filter:blur(10px);
+  opacity:0;
+  transition:opacity 7s ease;
+}
+.msg span{transition:opacity 6s ease}
+.msg .gone{opacity:0}
+
+.msg.s0{color:#4A4335}
+.msg.s1{color:#7E7565;text-shadow:.5px .5px 1px rgba(255,255,255,.55)}
+.msg.s1::before{opacity:.4}
+.msg.s2{color:#BFB5A2;text-shadow:1px 1px 1px rgba(255,255,255,.85), -1px -1px 1px rgba(120,108,86,.14)}
+.msg.s2::before{opacity:.65}
+.msg.s3{
+  color:#D7D0C2;text-shadow:1px 1px 1px rgba(255,255,255,.95), -1px -1px 1px rgba(120,108,86,.1);
+  padding:12px 16px;
+  box-shadow:inset 3px 3px 8px rgba(193,182,161,.42), inset -3px -3px 8px rgba(255,255,255,.78);
+}
+.msg.s3::before{opacity:.85}
+
+.msg .seep{
+  opacity:0;color:#9A9081;font-size:.92em;
+  text-shadow:1px 1px 1px rgba(255,255,255,.9);
+  animation:seep 5s ease forwards;
+}
+@keyframes seep{to{opacity:.55}}
+
+/* 新着: 押し出しとして生まれ（birth）、fresh解除後は7sの遷移で面へ溶ける */
+.msg.fresh{
+  background:var(--bg);
+  padding:12px 16px;border-radius:18px;
+  box-shadow:-7px -7px 16px var(--lite), 7px 7px 16px var(--dark);
+  animation:birth 2.6s ease-out, drift 16s ease-in-out 2.6s infinite alternate;
+}
+@keyframes birth{
+  from{box-shadow:-11px -11px 30px rgba(255,255,255,1), 11px 11px 30px rgba(193,182,161,.38)}
+  to{box-shadow:-7px -7px 16px var(--lite), 7px 7px 16px var(--dark)}
+}
+@keyframes drift{from{transform:translateX(-5px)}to{transform:translateX(5px)}}
+
+.msg.dent{pointer-events:none;padding:0;box-shadow:none}
+.msg.dent::before{opacity:.9}
+.msg.dent .pit{
+  position:relative;height:10px;border-radius:8px;
+  background:rgba(193,182,161,.08);
+  box-shadow:inset 2px 2px 5px rgba(193,182,161,.52), inset -2px -2px 5px rgba(255,255,255,.85);
+}
+/* 地面が閉じる: 新規に生まれたくぼみだけ、深い彫りから定常へ6秒で収束。
+   復元されたくぼみには付与されない（生成時にのみ settle が付く） */
+.msg.dent .pit.settle{animation:settle 6s ease-out}
+@keyframes settle{
+  from{box-shadow:inset 4px 4px 10px rgba(193,182,161,.8), inset -4px -4px 10px rgba(255,255,255,1)}
+  to{box-shadow:inset 2px 2px 5px rgba(193,182,161,.52), inset -2px -2px 5px rgba(255,255,255,.85)}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .msg.fresh{animation:none}
+  body::before,body::after,form::before{animation:none}
+  .msg.dent .pit.settle{animation:none}
+}
+
+body.noanim .msg, body.noanim .msg::before, body.noanim .msg span{transition:none}
+</style>
+</head>
+<body class="noanim">
+
+<div id="f"></div>
+
+<main>
+  <form id="form" autocomplete="off">
+    <!-- ことばを入れてください -->
+    <!-- いま、なにを -->
+    <!-- ここに置いていってください -->
+    <textarea id="box" placeholder="メッセージを入力" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+    <!-- 送る -->
+    <!-- 手放す -->
+    <button id="send" type="submit">メッセージを送信</button>
+  </form>
+</main>
+
+<script>
+'use strict';
+
+/* ---- supabase ---- */
+const SUPA_URL = 'https://wgcrdpyboysrniegvxqe.supabase.co';
+const SUPA_KEY = 'sb_publishable_0fXlcqzLQgIocMCx1DwW4A_6ZjAUGJI';
+const SUPA_AUTH = { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY };
+
+/* ---- storage (single swap point) ---- */
+/* messages は共有DB（Supabase）、fragments は端末ごと（localStorage）。
+   loadMessages は失敗時 [] を返す。描画側はエラーを見ない */
+const db = (() => {
+  const REST = SUPA_URL + '/rest/v1/messages';
+  const AUTH = SUPA_AUTH;
+  const FK = 'field.fragments.v1';
+  const read = k => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch(e){ return []; } };
+  const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
+  return {
+    async loadMessages(){
+      try {
+        const res = await fetch(REST + '?select=id,body,created_at&order=created_at.desc', { headers: AUTH });
+        if(!res.ok) return [];
+        const rows = await res.json();
+        return rows
+          .filter(r => r && r.id && typeof r.body === 'string')
+          .map(r => ({ id: r.id, text: r.body, t: Date.parse(r.created_at) || Date.now() }));
+      } catch(e){ return []; }
+    },
+    saveMessage(m){
+      fetch(REST, {
+        method: 'POST',
+        headers: { ...AUTH, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ id: m.id, body: m.text }),
+      }).catch(() => {});
+    },
+    loadFragments(){ return read(FK); },
+    saveFragments(fr){ const a = read(FK).concat(fr).slice(-400); write(FK, a); },
+  };
+})();
+
+/* ---- tunables ---- */
+const THRESHOLD   = 14;
+const PROTECT     = 7;
+const DEBOUNCE_MS = 400;
+const TICK_MS     = 4000;
+const SEEP_EVERY  = 9000;
+const SEEP_CHANCE = .35;
+const DECAY_AGE   = .16;
+const DECAY_RANK  = .05;
+const P_JOIN      = .55;
+const P_MIX       = .15;
+const LLM_TIMEOUT = 12000; // 実測: ウォーム3〜5s・コールドスタート〜9s。実失敗は即rejectされるのでここは長めに
+
+/* ---- utils ---- */
+function hash01(s){
+  let h = 2166136261;
+  for(let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 10000) / 10000;
+}
+
+/* ---- transform（書き換えの素地・single swap point） ----
+   契約: transform(text) => Promise<{ text, erased }>
+     text   書き換え後の全文。読める文を返す。
+     erased 消えた語片。にじみの素材になる。
+   本文は Edge Function（LLM）に書かせる。遅い・失敗のときは
+   以下の規則ベース（現象学的文体の模写）へフォールバックし、落とさない。 */
+
+const keep = s => /[ぁ-んァ-ヶ一-龯a-zA-Z0-9ー]/.test(s);
+
+// 箇所ごとの決定論的な採否。打鍵のたびに判定が揺れないようにする
+const roll = (site, key, p) => hash01(key + '|' + site) < p;
+
+// 感情の形容詞 → 身体の知覚。活用語尾（い・く・かった・そう）を引き継ぐ
+const SENSE_ADJ = [
+  [/(?:嬉し|うれし)(い|く|かった|そう)/g, '頬のあたりがあたたか'],
+  [/(?:悲し|かなし)(い|く|かった|そう)/g, '喉の奥がせま'],
+  [/(?:寂し|さびし|さみし)(い|く|かった|そう)/g, '手のひらが冷た'],
+  [/(?:楽し|たのし)(い|く|かった|そう)/g, '足の裏が軽'],
+  [/(?:怖|こわ)(い|く|かった|そう)/g, '背中が冷た'],
+];
+
+// 感情・状態の定型 → 身体の知覚。文末・読点の直前でだけ替える
+const SENSE_FIX = [
+  [/(?:疲れました|疲れた|つかれた)(?=[。、\s]|$)/g, 'ふくらはぎが重い'],
+  [/(?:眠いです|眠い|ねむい)(?=[。、\s]|$)/g, 'まぶたが下りてくる'],
+  [/(?:不安です|不安だ)(?=[。、\s]|$)/g, '指先が冷たい'],
+  [/(?:お腹がすいた|お腹すいた|おなかすいた|腹が減った|腹減った)(?=[。、\s]|$)/g, '胃のあたりが鳴っている'],
+];
+
+// 削ぎ落とし: 主語の省略、思考の報告・強調・感嘆の削除
+function stripPass(text, erased){
+  let out = text;
+  const lit = (re, rep) => { out = out.replace(re, m => { if(m !== rep && keep(m)) erased.push(m); return rep; }); };
+  lit(/(?:わたくし|わたし|あたし|ぼく|おれ|私|僕|俺)(?:は|が|も|の)/g, '');
+  lit(/と思っています|と思います|と思いました|と思った|と思う/g, '');
+  lit(/(?<=[るたい])気がします|(?<=[るたい])気がする/g, '');
+  lit(/めっちゃ|すごく|すげー|超|まじで|マジで|ほんとに|本当に|とても|かなり/g, '');
+  lit(/笑|ｗ+/g, '');
+  out = out.replace(/(?<![a-zA-Z])w{2,}(?![a-zA-Z])/g, m => { erased.push(m); return ''; });
+  lit(/かな[ぁあ]?(?=[。、\s]|$)/g, 'かもしれない');
+  out = out.replace(/([^。、\s])(?:よね|よ|ね)(?=[。、\s]|$)/g, (m, c) => { erased.push(m.slice(c.length)); return c; });
+  out = out.replace(/(.)\1{2,}/g, (m, c) => { if(keep(m)) erased.push(m); return c; });
+  out = out.replace(/[!！]+|[?？]+|…+|‥+|\.{3,}/g, '。');
+  out = out.replace(/。{2,}/g, '。').replace(/、{2,}/g, '、');
+  return out;
+}
+
+// 知覚へ: 感情語の置換と、対象が主体に到来する向きへの反転
+function sensePass(text, erased){
+  let out = text;
+  for(const [re, body] of SENSE_ADJ)
+    out = out.replace(re, (m, suf) => { erased.push(m); return body + suf; });
+  for(const [re, rep] of SENSE_FIX)
+    out = out.replace(re, m => { erased.push(m); return rep; });
+  out = out.replace(/([^。、\s]{1,16})を見(?:ました|ます|た|る)/g, (m, w) => { erased.push(m.slice(w.length)); return w + 'が視界に入る'; });
+  out = out.replace(/([^。、\s]{1,16})を聞(?:きました|きます|いた|く)/g, (m, w) => { erased.push(m.slice(w.length)); return w + 'が聞こえてくる'; });
+  out = out.replace(/([^。、\s]{1,16})に触(?:りました|ります|った|る)/g, (m, w) => { erased.push(m.slice(w.length)); return w + 'が指に触れる'; });
+  return out;
+}
+
+// 従: 時々ひとつだけ他の技法が混じる。毎回ではない
+function mixPass(text, erased){
+  let done = false;
+  const sub = (t, re, rep, key) => t.replace(re, (...a) => {
+    const m = a[0], idx = a[a.length - 2], src = a[a.length - 1];
+    if(done || !roll(src.slice(Math.max(0, idx - 5), idx + m.length) + ':' + idx, key, P_MIX)) return m;
+    done = true;
+    if(keep(m)) erased.push(m);
+    return rep;
+  });
+  let out = text;
+  out = sub(out, /。(?=[^\s。])/g, '、', 'tawada');                                        // 多和田: 読点連結・主語の漂流
+  out = sub(out, /(?:痛い|いたい)(?=[。、\s]|$)(?!、と胸がいう)/g, 'いたい、と胸がいう', 'jisaku'); // 自作三篇: 痛みの部位帰属
+  out = sub(out, /誰か|だれか/g, '兄', 'tanka');                                           // 短歌俳句: 「誰か」でなく固有へ
+  out = sub(out, /たくさん|いっぱい/g, '二万三千四百', 'ws');                              // ワークショップ: 数の具体化
+  out = sub(out, /みんな|皆さん|皆/g, '百七十一人', 'ws');
+  return out;
+}
+
+// 基調: 連用中止法。文境界を活用でつなぎ、歩行中はピリオドで切らない
+function joinPass(text){
+  return text.replace(/(ていました|ています|ている|ていた|ました|ます|かったです|いです|でした|です)。(?=[^\s。])/g, (m, end, idx, src) => {
+    if(!roll(src.slice(Math.max(0, idx - 4), idx) + ':' + idx, 'join', P_JOIN)) return m;
+    if(end[0] === 'て') return 'ていて、';
+    if(end === 'ました' || end === 'ます') return '、';
+    if(end === 'かったです' || end === 'いです') return 'く、';
+    return 'で、';
+  });
+}
+
+function transformRules(input){
+  const erased = [];
+  let out = stripPass(input, erased);
+  out = sensePass(out, erased);
+  out = mixPass(out, erased);
+  out = joinPass(out);
+  return { text: out, erased };
+}
+
+// LLM は消えた語片を報告しないので、入力と出力の LCS 差分から削除断片を拾う
+function erasedByDiff(before, after){
+  const A = [...before], B = [...after];
+  const n = A.length, m = B.length;
+  if(!n || !m || n > 600 || m > 600) return [];
+  const dp = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for(let i = n - 1; i >= 0; i--)
+    for(let j = m - 1; j >= 0; j--)
+      dp[i][j] = A[i] === B[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const out = [];
+  let i = 0, j = 0, run = '';
+  while(i < n && j < m){
+    if(A[i] === B[j]){ if(run){ out.push(run); run = ''; } i++; j++; }
+    else if(dp[i + 1][j] >= dp[i][j + 1]){ run += A[i]; i++; }
+    else j++;
+  }
+  if(i < n) run += A.slice(i).join('');
+  if(run) out.push(run);
+  return out.filter(keep);
+}
+
+// final: 送信時フラッシュなら true。サーバ側のレート制限が
+// 「投稿の連投」と「打鍵ごとのリライト」を区別するための印
+async function transform(input, final){
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), LLM_TIMEOUT);
+    const res = await fetch(SUPA_URL + '/functions/v1/rewrite', {
+      method: 'POST',
+      headers: { ...SUPA_AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: input, final: !!final }),
+      signal: ctl.signal,
+    });
+    clearTimeout(timer);
+    if(!res.ok) throw new Error(String(res.status));
+    const data = await res.json();
+    if(typeof data.text !== 'string') throw new Error('shape');
+    // 空文字は「検査落ち・レート超過」の合図。失敗ではないので規則ベースには
+    // 落とさず、空のまま上へ返す（送信なら保存されず、入力中なら何も起きない）
+    if(!data.text.trim()) return { text: '', erased: [] };
+    return { text: data.text, erased: erasedByDiff(input, data.text) };
+  } catch(e){
+    return transformRules(input);
+  }
+}
+
+/* ---- input ---- */
+const box = document.getElementById('box');
+const form = document.getElementById('form');
+let composing = false;
+let rewriteTimer = 0;
+
+// デバウンス: 打鍵が続く間は発火せず、止まって DEBOUNCE_MS 後に一度だけ transform を通す
+function queueRewrite(){
+  clearTimeout(rewriteTimer);
+  rewriteTimer = setTimeout(() => rewrite(), DEBOUNCE_MS);
+}
+
+box.addEventListener('compositionstart', () => { composing = true; clearTimeout(rewriteTimer); });
+box.addEventListener('compositionend', () => { composing = false; queueRewrite(); });
+box.addEventListener('input', e => { if(composing || e.isComposing) return; queueRewrite(); });
+
+// LLM 待ちの間は元の表示を保つ。返った時点で入力が動いていたら結果を捨てる
+// （その打鍵が新しいデバウンスを積んでいるので、書き換えはそちらが引き継ぐ）
+let rewriteGen = 0;
+async function rewrite(){
+  if(composing) return;
+  const v = box.value;
+  if([...v].length <= THRESHOLD) return;
+  const caret = box.selectionStart ?? v.length;
+  const guard = Math.max(0, Math.min(v.length, caret - PROTECT));
+  if(guard < 2) return;
+  const head = v.slice(0, guard), tail = v.slice(guard);
+  const gen = ++rewriteGen;
+  const { text: h2, erased } = await transform(head);
+  if(gen !== rewriteGen || composing || box.value !== v) return;
+  if(!h2.trim()) return; // 検査落ち等の空応答。入力中の本文には触らない
+  if(h2 === head) return;
+  const caretNow = box.selectionStart ?? v.length;
+  if(caretNow < guard) return; // カーソルが書き換え域へ戻っていたら触らない
+  if(erased.length) db.saveFragments(erased.filter(keep));
+  const fromEnd = v.length - caretNow;
+  box.value = h2 + tail;
+  const nc = Math.max(0, box.value.length - fromEnd);
+  box.setSelectionRange(nc, nc);
+}
+
+/* ---- log space ---- */
+const field = document.getElementById('f');
+const messages = [];
+
+function score(m, now){
+  const ageMin = (now - m.t) / 60000;
+  const rank = messages.filter(o => o.t > m.t).length;
+  return Math.min(1, DECAY_AGE * Math.log10(1 + ageMin * 2) + DECAY_RANK * rank);
+}
+
+function mountMsg(m){
+  const el = document.createElement('div');
+  el.className = 'msg s0';
+  const chars = [...m.text];
+  for(let i = 0; i < chars.length; i++){
+    if(chars[i] === '\n'){ el.appendChild(document.createElement('br')); continue; }
+    const sp = document.createElement('span');
+    sp.textContent = chars[i];
+    sp.dataset.i = i;
+    el.appendChild(sp);
+  }
+  el.style.top = '7vh';
+  field.appendChild(el);
+  m.el = el;
+}
+
+function layout(){
+  const now = Date.now();
+  const W = innerWidth, H = innerHeight;
+  const items = messages.filter(m => m.el).map(m => ({ m, s: score(m, now) }));
+
+  for(const it of items){
+    const { m, s } = it;
+    const el = m.el;
+    el.classList.toggle('fresh', now - m.t < 45000 && s < .18);
+
+    it.left = (0.03 + hash01(m.id + 'x') * .75) * W;
+    el.style.left = it.left + 'px';
+    el.style.maxWidth = Math.max(120, Math.min(430, W * .96 - it.left)) + 'px';
+    it.y = (0.08 + s * .78 + (hash01(m.id + 'y') * .06 - .03)) * H;
+
+    if(s >= .85){
+      if(!m.pit){
+        el.classList.remove('s0','s1','s2','s3');
+        el.classList.add('dent');
+        el.textContent = '';
+        const p = document.createElement('div');
+        p.className = document.body.classList.contains('noanim') ? 'pit' : 'pit settle';
+        p.style.width = Math.max(60, Math.min(320, [...m.text].length * 7.5)) + 'px';
+        el.appendChild(p);
+        m.pit = true;
+      }
+      continue;
+    }
+    const stage = s < .18 ? 's0' : s < .42 ? 's1' : s < .65 ? 's2' : 's3';
+    for(const c of ['s0','s1','s2','s3']) el.classList.toggle(c, c === stage);
+    const p = s < .5 ? 0 : Math.min(.75, (s - .5) / .5);
+    el.querySelectorAll('span').forEach(sp => {
+      if(sp.classList.contains('seeped')) return;
+      sp.classList.toggle('gone', hash01(m.id + ':' + sp.dataset.i) < p);
+    });
+  }
+
+  // sediment: no physical pile-up of text
+  items.sort((a, b) => a.y - b.y || (a.m.id < b.m.id ? -1 : 1));
+  const fr = form.getBoundingClientRect();
+  const placed = [{ left: fr.left - 18, right: fr.right + 18, top: fr.top - 18, bottom: fr.bottom + 18 }];
+  for(const it of items){
+    const el = it.m.el;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    const pad = it.m.pit ? 6 : 14;
+    let y = it.y, moved = true, guard = 0;
+    while(moved && guard++ < 12){
+      moved = false;
+      for(const r of placed){
+        if(it.left < r.right + pad && it.left + w > r.left - pad &&
+           y < r.bottom + pad && y + h > r.top - pad){
+          y = r.bottom + pad;
+          moved = true;
+        }
+      }
+    }
+    y = Math.min(y, H - h - 8);
+    placed.push({ left: it.left, right: it.left + w, top: y, bottom: y + h });
+    el.style.top = y + 'px';
+  }
+}
+
+function seep(){
+  if(Math.random() > SEEP_CHANCE) return;
+  const pool = db.loadFragments();
+  if(!pool.length) return;
+  const cands = messages.filter(m => m.el && !m.pit && m.el.querySelector('span.gone'));
+  if(!cands.length) return;
+  const m = cands[(Math.random() * cands.length) | 0];
+  const gones = m.el.querySelectorAll('span.gone:not(.seeped)');
+  if(!gones.length) return;
+  const g = gones[(Math.random() * gones.length) | 0];
+  let frag = pool[(Math.random() * pool.length) | 0];
+  if([...frag].length > 10) frag = [...frag].slice(0, 10).join('');
+  g.textContent = frag;
+  g.classList.remove('gone');
+  g.classList.add('seep', 'seeped');
+}
+
+/* ---- send ---- */
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  // 送信直前フラッシュ: 保留中の書き換えを破棄し、全文を transform に通す。
+  // PROTECT は入力中の表示保護なので、手放す時点では全文が対象。IME変換中は触らない。
+  // 手放し（欄が空く・井戸のフラッシュ）は即時。本文は transform が
+  // 解決してから面に出る。LLM が遅い・失敗のときも transform 内で
+  // 規則ベースに落ちるので、送ったことばは失われない
+  clearTimeout(rewriteTimer);
+  rewriteGen++; // 飛行中の途中書き換えは無効化（欄はこれから空く）
+  let text = box.value.replace(/\s+$/, '');
+  if(!text.trim()) return;
+  const wasComposing = composing;
+  box.value = '';
+  box.focus();
+  form.classList.add('sent');
+  setTimeout(() => form.classList.remove('sent'), 900);
+  if(!wasComposing){
+    const r = await transform(text, true);
+    if(r.erased.length) db.saveFragments(r.erased.filter(keep));
+    text = r.text.replace(/\s+$/, '');
+  }
+  // 空はここで静かに終わる: 検査落ち・レート超過は「送信された風だが保存しない」
+  if(!text.trim()) return;
+  const m = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), text, t: Date.now() };
+  messages.push(m);
+  db.saveMessage(m);
+  mountMsg(m);
+  requestAnimationFrame(() => requestAnimationFrame(layout));
+});
+
+// 復元: 取得完了までは noanim を保ち、復元分が遷移なしで面に置かれてから解除する。
+// 取得前に送信された分と id が重なった行は捨てる（二重マウント防止）
+db.loadMessages().then(rows => {
+  for(const r of rows){
+    if(messages.some(o => o.id === r.id)) continue;
+    messages.push(r);
+    mountMsg(r);
+  }
+  layout();
+  requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove('noanim')));
+});
+setInterval(layout, TICK_MS);
+setInterval(seep, SEEP_EVERY);
+</script>
+<!-- なにか書いてください -->
+<!-- 読んだら流します -->
+</body>
+</html>
